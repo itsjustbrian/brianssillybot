@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const ytdl = require("ytdl-core");
 
-console.log(process.env);
+const dieImagePath = (number) => `./assets/die/dice${number}.png`;
 
 const getEmoji = (guild, name) => {
   return guild.emojis.cache.find(emoji => emoji.name === name);
@@ -10,8 +10,7 @@ const getEmoji = (guild, name) => {
 const getOrCreateDieEmoji = async (guild, dieRoll) => {
   let dieEmoji = getEmoji(guild, `dice${dieRoll}`);
   if (!dieEmoji) {
-    const imgPath = `./assets/die/dice${dieRoll}.png`;
-    await guild.emojis.create(imgPath, `dice${dieRoll}`);
+    await guild.emojis.create(dieImagePath(dieRoll), `dice${dieRoll}`);
     dieEmoji = getEmoji(guild, `dice${dieRoll}`);
   }
   return dieEmoji;
@@ -40,8 +39,22 @@ client.on("message", async message => {
     let dieEmojis = [];
     const numRolls = message.content.split('🎲').length - 1;
     for (let i = 0; i < numRolls; i++) {
-      const dieRoll = Math.floor(Math.random() * 6 + 1);
-      dieEmojis.push(await getOrCreateDieEmoji(message.guild, dieRoll));
+      let dieRoll = Math.floor(Math.random() * 6 + 1);
+      try {
+        dieEmojis.push(await getOrCreateDieEmoji(message.guild, dieRoll));
+      } catch (error) {
+        // Maximum number of emojis reached
+        if (error.code === 30008) {
+          let files = [];
+          for (let j = 0; j < numRolls; j++) {
+            dieRoll = Math.floor(Math.random() * 6 + 1);
+            const attachment = new Discord.MessageAttachment(dieImagePath(dieRoll));
+            files.push(attachment);
+          }
+          message.channel.send('', files);
+          return;
+        }
+      }
     }
     message.channel.send(dieEmojis.map((dieEmoji) => `${dieEmoji}`).join(' '));
   }
